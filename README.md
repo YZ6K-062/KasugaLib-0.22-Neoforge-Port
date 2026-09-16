@@ -1,4 +1,5 @@
 # Unofficial personal port. Not affiliated with the official team. For official releases, check official channels.
+- https://github.com/KasugaLibGroup/KasugaLib
 # KasugaLib
 KasugaLib is a base mod aiming at expediate modding. We are trying to reform date-gen and registration, which has already been a berden of most modders.
 
@@ -19,7 +20,8 @@ KasugaLib is a base mod aiming at expediate modding. We are trying to reform dat
   - new Type of Textures
   - new Type of Components(Under Construction)
 
-
+# 非官方，个人移植，跟官方团队无关，官方版看官方渠道。
+- https://github.com/KasugaLibGroup/KasugaLib
 # KasugaLib
 KasugaLib 是一个旨在加速mod开发速度的基础库。我们正努力改革数据驱动和注册机制，这些机制正在成为大部分modder的负担。
 
