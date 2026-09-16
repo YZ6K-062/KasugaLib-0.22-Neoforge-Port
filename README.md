@@ -1,3 +1,4 @@
+# Unofficial personal port. Not affiliated with the official team. For official releases, check official channels.
 # KasugaLib
 KasugaLib is a base mod aiming at expediate modding. We are trying to reform date-gen and registration, which has already been a berden of most modders.
 
