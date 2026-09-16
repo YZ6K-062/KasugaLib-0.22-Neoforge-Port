@@ -1,0 +1,440 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'idea'
+    id 'net.neoforged.moddev' version '2.0.147'
+}
+
+version = mod_version
+// The 1.20.1-create-2 branch appended "-create" to the artifact version when built with
+// `type = create` (see gradle.properties), so a Create-flavoured build could be published
+// alongside the normal one. Reproduced here for parity.
+if (project.hasProperty('type') && 'create' == project.property('type')) {
+    version = "${version}-create"
+}
+group = mod_group_id
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    // Registrate (NeoForge 1.21.1 fork)
+    maven { url = 'https://maven.ithundxr.dev/snapshots' }
+    // Create 6.0.x (NeoForge 1.21.1) — official Create maven
+    maven { url = 'https://maven.createmod.net' }
+    // JEI
+    maven { url = 'https://maven.blamejared.com/' }
+    // Curios
+    maven { url = 'https://maven.theillusivec4.top/' }
+    // MALI (Mixed-Arithmetic-Logic-Interpreter, vendored as kasuga.lib.vendor_modules.interpreter)
+    maven { url = 'https://raw.githubusercontent.com/MegumiKasuga/kasuga-maven/mali_1.1.0/' }
+    // WorldEdit
+    maven { url = 'https://maven.enginehub.org/repo/' }
+    // Iris (NeoForge, replaces Oculus)
+    maven { url = 'https://api.modrinth.com/maven' }
+    // WorldEdit / Oculus via curse maven
+    maven {
+        url 'https://cursemaven.com'
+        content { includeGroup 'curse.maven' }
+    }
+}
+
+base {
+    archivesName = 'kasuga_lib'
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+neoForge {
+    version = project.neo_version
+
+    parchment {
+        mappingsVersion = project.parchment_mappings_version
+        minecraftVersion = project.parchment_minecraft_version
+    }
+
+    runs {
+        client {
+            client()
+            systemProperty 'neoforge.enabledGameTestNamespaces', 'kasuga_lib'
+        }
+        server {
+            server()
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', 'kasuga_lib'
+        }
+        gameTestServer {
+            type = "gameTestServer"
+            systemProperty 'neoforge.enabledGameTestNamespaces', 'kasuga_lib'
+        }
+        data {
+            data()
+            programArguments.addAll '--mod', 'kasuga_lib', '--all',
+                    '--output', file('src/generated/resources/').getAbsolutePath(),
+                    '--existing', file('src/main/resources/').getAbsolutePath()
+        }
+        configureEach {
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+// --- Create-flavour source gating ---
+// KasugaLib's Create integration code lives under kasuga.lib.core.create.*. It depends on Create 6.0
+// APIs and must NOT be compiled into the NORMAL flavour (default `type = normal`). When building the
+// normal flavour we exclude that package entirely; when `type = create` the package is kept and the
+// Create/Ponder/Flywheel dependencies (declared further below under the same `type` gate) are on the
+// compile/runtime classpath, so it compiles as part of the main source set.
+if (!(project.hasProperty('type') && 'create' == project.property('type'))) {
+    sourceSets.main.java.exclude 'kasuga/lib/core/create/**'
+    sourceSets.main.java.exclude 'kasuga/lib/registrations/create/**'
+    sourceSets.main.java.exclude 'kasuga/lib/registrations/registry/CreateRegistry.java'
+    sourceSets.main.java.exclude 'kasuga/lib/core/menu/locator/ContraptionBlockMenuLocator.java'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += ['-Xmaxerrs', '3000']
+    // Machine-readable diagnostics (used to inventory migration errors). Remove for release builds.
+    if (project.hasProperty('drawDiags')) {
+        options.compilerArgs += ['-XDrawDiagnostics']
+    }
+}
+
+// Full runtime classpath of Javalin (Kotlin stdlib + Jetty 11 + slf4j-api),
+// resolved and bundled as a unit. `jarJar` does NOT pull transitive deps on
+// its own, so we need this explicit configuration to get the whole Jetty tree.
+configurations {
+    javalinBundle {
+        transitive = true
+    }
+    // Javet platform-native artifacts, resolved separately so fixJavetNativeModules
+    // can rewrite their (invalid) Automatic-Module-Name before we bundle them.
+    javetNatives
+}
+
+// Javet's native jars ship an INVALID Automatic-Module-Name (hyphens inside a
+// segment, e.g. "com.caoccao.javet.v8-windows-x86_64"). ModLauncher builds a JPMS
+// module layer over every jar-in-jar dependency and the JDK rejects that name at
+// launch. fixJavetNativeModules rewrites each manifest to a valid name
+// (hyphens -> dots); these are the *fixed* jars we actually bundle and run with.
+def javetFixedDir = layout.buildDirectory.dir('javet-fixed')
+def fixedJavetFiles = files(
+        javetFixedDir.get().file('javet-v8-windows-x86_64-4.0.0.jar'),
+        javetFixedDir.get().file('javet-v8-linux-x86_64-4.0.0.jar'),
+        javetFixedDir.get().file('javet-v8-linux-arm64-4.0.0.jar'),
+        javetFixedDir.get().file('javet-v8-macos-x86_64-4.0.0.jar'),
+        javetFixedDir.get().file('javet-v8-macos-arm64-4.0.0.jar'),
+).builtBy('fixJavetNativeModules')
+
+dependencies {
+    // --- Lombok (same as original) ---
+    compileOnly "org.projectlombok:lombok:1.18.34"
+    annotationProcessor "org.projectlombok:lombok:1.18.34"
+
+    // --- Registrate (NeoForge 1.21.1 fork, from ithundxr snapshots) ---
+    implementation "com.tterrag.registrate:Registrate:${registrate_version}"
+
+    // --- Create (NeoForge 1.21.1 = Create 6.0.x) — ONLY for the "create" flavour ---
+    // KasugaLib ships in two flavours: the NORMAL version (this workspace, default `type = normal`)
+    // and the CREATE version (the 1.20.1-create-2 branch). The current repo is the NORMAL flavour,
+    // which must NOT bundle or load Create at runtime. The Create dependency setup below is kept
+    // (mirroring the create-2 branch) so that building with `-Ptype=create` (or `type=create` in
+    // gradle.properties) yields a Create-flavoured build. In the normal flavour these lines are
+    // skipped entirely: KasugaLib has no `simibubi`/`create` imports, so the normal build compiles
+    // and runs fine without them.
+    //
+    // 0.5.1 -> 6.0 is a breaking rewrite, so both the coordinates and the companion deps changed:
+    //   * `slim` is still the classifier intended for compiling against.
+    //   * ModDevGradle deobfuscates automatically, so no `fg.deobf(...)` wrapper as on Forge.
+    //   * compileOnly keeps Create out of the published jar and POM (genuinely optional, downstream
+    //     mods such as Kuayue declare Create themselves); runtimeOnly is what actually loads it.
+    //   * 6.0.8-169 is the newest published build of the 6.0.8 series (no plain "6.0.8" exists).
+    //   * Flywheel is NOT folded into Create 6.0 — it is still a separate mod, but changed hands:
+    //       1.20.1: com.jozufozu.flywheel:flywheel-forge-1.20.1:0.6.11-13
+    //       1.21.1: dev.engine-room.flywheel:flywheel-neoforge-1.21.1:1.0.x  (split -api / impl)
+    //   * Ponder was split out of Create into its own mod for 6.0 (net.createmod.ponder).
+    //   * Create 6.0 refuses to load without both Ponder (>=1.0.66) and Flywheel (>=1.0.0,<2.0),
+    //     but because we pull Create with `transitive = false`, those runtime deps must be declared
+    //     explicitly here or pre-loading fails with "Mod create requires ponder/flywheel".
+    if (project.hasProperty('type') && 'create' == project.property('type')) {
+        compileOnly("com.simibubi.create:create-${create_minecraft_version}:${create_version}:slim") {
+            transitive = false
+        }
+        runtimeOnly("com.simibubi.create:create-${create_minecraft_version}:${create_version}:slim") {
+            transitive = false
+        }
+
+        compileOnly("net.createmod.ponder:Ponder-NeoForge-${create_minecraft_version}:${ponder_version}") {
+            transitive = false
+        }
+        runtimeOnly("net.createmod.ponder:Ponder-NeoForge-${create_minecraft_version}:${ponder_version}") {
+            transitive = false
+        }
+
+        compileOnly("dev.engine-room.flywheel:flywheel-neoforge-api-${create_minecraft_version}:${flywheel_version}") {
+            transitive = false
+        }
+        runtimeOnly("dev.engine-room.flywheel:flywheel-neoforge-${create_minecraft_version}:${flywheel_version}") {
+            transitive = false
+        }
+    }
+
+    // --- JEI (NeoForge). Single artifact on 1.21.1 ---
+    compileOnly "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"
+    runtimeOnly "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"
+
+    // =====================================================================
+    // Bundled runtime libraries (jar-in-jar)
+    //
+    // KasugaLib needs these at RUNTIME (Javet/V8 for the JS engine, Javalin +
+    // Netty + Jackson for the web server, Yoga for layout, MALI for the
+    // interpreter). They are NOT provided by Minecraft/NeoForge, so they must be
+    // BUNDLED into the mod jar. We use `jarJar(implementation(...))`:
+    //   * `implementation` keeps them on the compile classpath and as a normal
+    //     transitive dependency,
+    //   * `jarJar` embeds the jar into META-INF/jarjar/ inside the built mod
+    //     jar, so the published artefact is self-contained. This fixes the
+    //     NoClassDefFoundError: com/caoccao/javet/interop/loader/IJavetLibLoadingListener
+    //     that occurred because the JRE couldn't find Javet at mod construction
+    //     (KasugaLib.<init> -> new KasugaLibStacks -> JavetLoader, line 57).
+    // Dev runs are additionally covered by `additionalRuntimeClasspath` below.
+    // =====================================================================
+
+    // --- MALI (vendored as kasuga.lib.vendor_modules.interpreter) ---
+    jarJar(implementation ("edu.carole:Mixed-Arithmetic-Logic-Interpreter:1.1.0") {
+        exclude group: 'com.google.guava', module: 'guava'
+        exclude group: 'com.google.code.gson', module: 'gson'
+        exclude group: 'javax.annotation', module: 'javax.annotation-api'
+    })
+
+    // --- Javet (V8 JS engine) — Java API ---
+    jarJar(implementation "com.caoccao.javet:javet-core:4.0.0")
+
+    // --- Javet platform natives (the actual V8 binary). One per desktop
+    //     OS/arch so the mod runs anywhere without the user supplying Javet.
+    //     Their Automatic-Module-Name is INVALID (hyphens inside a segment,
+    //     e.g. "com.caoccao.javet.v8-windows-x86_64"), which the JDK rejects when
+    //     ModLauncher builds a module layer over every jar-in-jar dependency.
+    //     fixJavetNativeModules rewrites each manifest to a valid name
+    //     (hyphens -> dots); we bundle the *rewritten* copies via fixedJavetFiles. ---
+    javetNatives "com.caoccao.javet:javet-v8-windows-x86_64:4.0.0"
+    javetNatives "com.caoccao.javet:javet-v8-linux-x86_64:4.0.0"
+    javetNatives "com.caoccao.javet:javet-v8-linux-arm64:4.0.0"
+    javetNatives "com.caoccao.javet:javet-v8-macos-x86_64:4.0.0"
+    javetNatives "com.caoccao.javet:javet-v8-macos-arm64:4.0.0"
+    jarJar files(fixedJavetFiles)
+
+    // --- Yoga (layout engine) ---
+    jarJar(implementation ("org.lwjgl:lwjgl-yoga:3.3.1") { exclude group: 'org.lwjgl', module: 'lwjgl' })
+
+    // --- Netty HTTP codec ---
+    // IMPORTANT: NeoForge ALREADY ships the whole Netty 4.1.x stack
+    // (io.netty.codec.http / .transport / .buffer / ...) as modules on the
+    // runtime module path. Bundling our own netty-codec-http produced a
+    // duplicate module name -> ResolutionException
+    // ("Two versions of module io.netty.codec.http found"). Our websocket code
+    // only ever used netty-codec-http; the rest of Netty was already expected
+    // from NeoForge. So we do NOT jarJar Netty at all and rely on NeoForge's
+    // 4.1.x Netty for both compile and runtime. (Our 4.1.77 vs NeoForge 4.1.118
+    // is within the same 4.1.x line, so the public API is compatible.)
+    implementation ("io.netty:netty-codec-http:4.1.77.Final") {
+        exclude group: 'io.netty', module: 'netty-handler'
+        exclude group: 'io.netty', module: 'netty-handler-proxy'
+        exclude group: 'io.netty', module: 'netty-codec'
+        exclude group: 'io.netty', module: 'netty-transport'
+        exclude group: 'io.netty', module: 'netty-buffer'
+        exclude group: 'io.netty', module: 'netty-resolver'
+        exclude group: 'io.netty', module: 'netty-common'
+    }
+
+    // --- Apache HTTP client (for the webserver / external requests) ---
+    // IMPORTANT: NeoForge ALREADY ships org.apache.httpcomponents.httpcore /
+    // .httpclient as modules on the runtime module path (from its libraries
+    // folder, with Automatic-Module-Name = org.apache.httpcomponents.httpcore).
+    // Bundling our own copy produced a duplicate module name ->
+    // ResolutionException ("reads more than one module named
+    // org.apache.httpcomponents.httpcore", thrown from
+    // ModuleLayerHandler.buildLayer). So we do NOT jarJar these: we only
+    // compile against them and rely on NeoForge's copy at runtime. The dev run
+    // still gets them via additionalRuntimeClasspath further below.
+    implementation "org.apache.httpcomponents:httpcore:4.4.14"
+    implementation "org.apache.httpcomponents:httpclient:4.5.13"
+
+    // --- Javalin (built-in web server) — on the COMPILE classpath so the
+    //     webserver code compiles. The full runtime tree (Jetty/Kotlin/slf4j)
+    //     is bundled separately via `javalinBundle` below.
+    implementation("io.javalin:javalin:6.6.0") { exclude group: 'org.slf4j' }
+
+    // Full runtime classpath of Javalin (Kotlin stdlib + Jetty 11 + slf4j-api),
+    // resolved and bundled as a unit — jarJar does NOT pull transitive deps on
+    // its own, so this is what brings the whole Jetty tree into the jar.
+    // Jackson is excluded here (we bundle a matching 2.18.3 elsewhere) and the
+    // compile-only annotations jar (no module name) + kotlin-stdlib-common
+    // (metadata-only, no module name) are excluded so MDG can embed the rest.
+    javalinBundle("io.javalin:javalin:6.6.0") {
+        exclude group: 'com.fasterxml.jackson.core'
+        exclude group: 'com.fasterxml.jackson.module'
+        exclude group: 'com.fasterxml.jackson.datatype'
+        // SLF4J API is ALREADY provided by NeoForge as a module named `org.slf4j`.
+        // Bundling our own slf4j-api-2.0.17.jar creates a SECOND module with that
+        // name, and the JPMS resolver rejects "reads more than one module named
+        // org.slf4j" (ResolutionException at ModuleLayerHandler.buildLayer). Javalin
+        // only needs an SLF4J API on the path, so we rely on the platform's.
+        exclude group: 'org.slf4j'
+        // Compile-only annotations jar — has no module name, can't be embedded, and isn't needed at runtime.
+        exclude group: 'org.jetbrains', module: 'annotations'
+        // Kotlin metadata-only jar — no module name and not needed on the JVM classpath.
+        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-common'
+    }
+    // Bundle the full Javalin runtime tree (with intact module-info). Because every
+    // jar has a module name and the whole graph (javalin -> jetty/slf4j/jackson/kotlin)
+    // is present, ModLauncher's module-layer build resolves successfully.
+    jarJar files(configurations.javalinBundle)
+
+    // --- Jackson (JSON) — 2.18.3 to match the version Javalin 6.6.0 was built against ---
+    // IMPORTANT: NeoForge ALSO ships com.fasterxml.jackson.core / .databind /
+    // .annotation as modules on the runtime module path. Bundling our own copy
+    // produced duplicate module names -> ResolutionException
+    // ("Two versions of module com.fasterxml.jackson.core/databind found").
+    // Javalin 6.6.0 declares jackson-databind as <optional>true</optional> with
+    // NO pinned version, so it tolerates whatever Jackson is on the path. We
+    // therefore do NOT jarJar Jackson — we only compile against it and rely on
+    // NeoForge's provided 2.13.x Jackson at runtime (both the published jar and
+    // the dev run, which gets it from additionalRuntimeClasspath / NeoForge).
+    implementation "com.fasterxml.jackson.core:jackson-databind:2.18.3"
+    implementation "com.fasterxml.jackson.core:jackson-core:2.18.3"
+    implementation "com.fasterxml.jackson.core:jackson-annotations:2.18.3"
+
+    // --- Iris (NeoForge, replaces Oculus) — compat is currently stubbed, no compile dep needed ---
+    // compileOnly "maven.modrinth:iris:1.8.14-beta.1+1.21.1-neoforge"
+
+    // --- Curios (NeoForge). Verify version ---
+    // implementation "top.theillusivec4.curios:curios-neoforge:${curios_version}"
+
+    // -----------------------------------------------------------------
+    // Dev-run runtime classpath (does NOT affect the published jar).
+    //
+    // On MC 1.21.8 and below ModDevGradle does NOT auto-add `implementation`
+    // deps to the dev-run classpath, so we list them here as well. This is
+    // belt-and-suspenders with the `jarJar` declarations above: the bundled
+    // copies cover the published jar, these cover the live dev run.
+    // -----------------------------------------------------------------
+    additionalRuntimeClasspath (
+            "com.caoccao.javet:javet-core:4.0.0",
+            fixedJavetFiles,
+            "edu.carole:Mixed-Arithmetic-Logic-Interpreter:1.1.0",
+            "org.lwjgl:lwjgl-yoga:3.3.1",
+            "io.netty:netty-codec-http:4.1.77.Final",
+            "org.apache.httpcomponents:httpcore:4.4.14",
+            "org.apache.httpcomponents:httpclient:4.5.13",
+            "io.javalin:javalin:6.6.0",
+            "com.fasterxml.jackson.core:jackson-databind:2.18.3",
+            "com.fasterxml.jackson.core:jackson-core:2.18.3",
+            "com.fasterxml.jackson.core:jackson-annotations:2.18.3"
+    )
+
+    // Dev runs also need the full Javalin runtime tree (Jetty / Kotlin stdlib / slf4j).
+    additionalRuntimeClasspath files(configurations.javalinBundle)
+}
+
+// ---------------------------------------------------------------------------
+// Rewrite the Javet native jars' Automatic-Module-Name to a valid JPMS name.
+// (See the fixedJavetFiles / javetNatives notes above.) This is required because
+// ModLauncher builds a module layer over every jar-in-jar dependency and the JDK
+// rejects the vendor's hyphenated Automatic-Module-Name at launch.
+// ---------------------------------------------------------------------------
+tasks.register('fixJavetNativeModules') {
+    def inputConfig = configurations.javetNatives
+    def outDir = javetFixedDir
+    inputs.files(inputConfig)
+    outputs.dir(outDir)
+    doLast {
+        def out = outDir.get().asFile
+        out.mkdirs()
+        inputConfig.files.each { src ->
+            def dest = new File(out, src.name)
+            def srcJar = new java.util.jar.JarFile(src)
+            def manifest = srcJar.manifest ?: new java.util.jar.Manifest()
+            def amn = manifest.mainAttributes.getValue('Automatic-Module-Name')
+            if (amn != null) {
+                // hyphens are illegal inside a Java module-name segment -> replace with dots
+                manifest.mainAttributes.putValue('Automatic-Module-Name', amn.replace('-', '.'))
+            }
+            def os = new java.io.FileOutputStream(dest)
+            def jos = new java.util.jar.JarOutputStream(os, manifest)
+            def entries = srcJar.entries()
+            while (entries.hasMoreElements()) {
+                def e = entries.nextElement()
+                if (e.name.equalsIgnoreCase('META-INF/MANIFEST.MF')) continue
+                def je = new java.util.jar.JarEntry(e.name)
+                je.time = e.time
+                if (!e.directory) je.size = e.size
+                jos.putNextEntry(je)
+                if (!e.directory) {
+                    jos << srcJar.getInputStream(e).bytes
+                }
+                jos.closeEntry()
+            }
+            jos.close()
+            srcJar.close()
+            println "Fixed module name in ${dest.name}"
+        }
+    }
+}
+
+// The rewritten natives must exist before the jar is assembled or the dev-run
+// classpath is built.
+tasks.named('jarJar') { dependsOn 'fixJavetNativeModules' }
+tasks.matching { it.name.startsWith('run') }.configureEach { dependsOn 'fixJavetNativeModules' }
+
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    var replaceProperties = [minecraft_version      : minecraft_version,
+                             minecraft_version_range: minecraft_version_range,
+                             neo_version            : neo_version,
+                             neo_version_range      : neo_version_range,
+                             loader_version_range   : loader_version_range,
+                             mod_id                 : mod_id,
+                             mod_name               : mod_name,
+                             mod_license            : mod_license,
+                             mod_version            : mod_version,
+                             mod_authors            : mod_authors,
+                             mod_description        : mod_description]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
+
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            from components.java
+            // The project folder name ("KasugaLib 0.22 Neoforge Port") is not a valid Maven
+            // identifier, so the artifactId is pinned to the real artifact name.
+            artifactId = 'kasuga_lib'
+        }
+    }
+    repositories {
+        maven {
+            url "file://${project.projectDir}/repo"
+        }
+    }
+}
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}
