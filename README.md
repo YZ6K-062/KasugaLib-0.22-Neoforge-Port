@@ -1,5 +1,6 @@
 # Unofficial personal port. Not affiliated with the official team. For official releases, check official channels.
 - https://github.com/KasugaLibGroup/KasugaLib
+# Note: This project uses artificial intelligence technology and may have unknown bugs.
 # KasugaLib
 KasugaLib is a base mod aiming at expediate modding. We are trying to reform date-gen and registration, which has already been a berden of most modders.
 
@@ -22,6 +23,7 @@ KasugaLib is a base mod aiming at expediate modding. We are trying to reform dat
 
 # 非官方，个人移植，跟官方团队无关，官方版看官方渠道。
 - https://github.com/KasugaLibGroup/KasugaLib
+# 注意：本项目使用人工智能技术，可能有未知Bug
 # KasugaLib
 KasugaLib 是一个旨在加速mod开发速度的基础库。我们正努力改革数据驱动和注册机制，这些机制正在成为大部分modder的负担。
 
