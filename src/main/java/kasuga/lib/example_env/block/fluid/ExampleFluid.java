@@ -1,0 +1,53 @@
+package kasuga.lib.example_env.block.fluid;
+
+import kasuga.lib.registrations.common.FluidReg;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.level.material.FlowingFluid;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.level.material.FluidState;
+
+import net.neoforged.neoforge.fluids.FluidType;
+import net.neoforged.neoforge.fluids.BaseFlowingFluid;
+import net.neoforged.neoforge.registries.DeferredHolder;
+import org.jetbrains.annotations.NotNull;
+
+public class ExampleFluid extends BaseFlowingFluid {
+
+
+    public ExampleFluid(Properties properties) {
+        super(properties);
+    }
+
+    @Override
+    protected void createFluidStateDefinition(StateDefinition.Builder<Fluid, FluidState> pBuilder) {
+        super.createFluidStateDefinition(pBuilder.add(LEVEL));
+    }
+
+    @Override
+    public boolean isSource(@NotNull FluidState fluidState) {
+        return fluidState.getType() instanceof ExampleFluid && !(fluidState.getType() instanceof ExampleFluid.Flowing);
+    }
+
+    @Override
+    public int getAmount(@NotNull FluidState fluidState) {
+        return isSource(fluidState) ? 8 : (Integer) fluidState.getValue(LEVEL);
+    }
+
+    public static class Flowing extends ExampleFluid {
+
+        public Flowing(Properties properties) {
+            super(properties);
+        }
+
+        @Override
+        public boolean isSource(@NotNull FluidState fluidState) {
+            return super.isSource(fluidState);
+        }
+    }
+}

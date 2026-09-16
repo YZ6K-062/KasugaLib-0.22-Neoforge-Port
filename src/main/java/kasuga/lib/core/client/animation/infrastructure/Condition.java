@@ -1,0 +1,75 @@
+package kasuga.lib.core.client.animation.infrastructure;
+
+import interpreter.compute.data.Namespace;
+import interpreter.logic.infrastructure.LogicalAssignable;
+import interpreter.logic.infrastructure.LogicalData;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import org.jetbrains.annotations.NotNull;
+
+import org.jetbrains.annotations.NotNull;
+import java.util.HashMap;
+import java.util.Map;
+
+
+@OnlyIn(Dist.CLIENT)
+public class Condition extends AnimationElement implements AnimAssignable {
+    @NotNull
+    LogicalData data;
+    private final Namespace namespace;
+    public Condition(String key, Namespace namespace, String code) {
+        super(key);
+        data = namespace.decodeLogical(code);
+        this.namespace = namespace;
+    }
+
+    public Condition(String key, Namespace namespace, LogicalData data) {
+        super(key);
+        this.data = data;
+        this.namespace = namespace;
+    }
+
+    public Condition(String key, Namespace namespace, boolean data) {
+        this(key, namespace, data ? "True" : "False");
+    }
+
+    public static Condition defaultTrue(String key, Namespace namespace) {
+        return new Condition(key, namespace, "True");
+    }
+
+    public static Condition defaultFalse(String key, Namespace namespace) {
+        return new Condition(key, namespace, "False");
+    }
+
+    public void fromString(String code) {
+        this.data = namespace.decodeLogical(code);
+    }
+
+    public boolean result() {
+        return data.getResult();
+    }
+
+    public @NotNull LogicalData getData() {
+        return data;
+    }
+
+    public boolean isAssignable() {
+        return data instanceof LogicalAssignable;
+    }
+
+    @Override
+    public Namespace getNamespace() {
+        return namespace;
+    }
+    @Override
+    public boolean isValid() {
+        return true;
+    }
+
+    public void assign(String codec, float value) {
+        namespace.assign(codec, value);
+    }
+
+    @Override
+    public void init() {}
+}

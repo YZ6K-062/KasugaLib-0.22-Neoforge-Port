@@ -1,0 +1,10 @@
+<component name="libraryTable">
+  <library name="Gradle: edu.carole:Mixed-Arithmetic-Logic-Interpreter:1.1.0" type="java-imported" external-system-id="GRADLE">
+    <properties groupId="edu.carole" artifactId="Mixed-Arithmetic-Logic-Interpreter" version="1.1.0" baseVersion="1.1.0" />
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/edu/carole/Mixed-Arithmetic-Logic-Interpreter/1.1.0/Mixed-Arithmetic-Logic-Interpreter-1.1.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

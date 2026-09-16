@@ -1,0 +1,11 @@
+{
+  "animation": [
+    "kasuga_lib:model"
+  ],
+  "model": [
+    "kasuga_lib:block/test/test_model_complicate",
+    "kasuga_lib:panel/arrow",
+    "kasuga_lib:panel/panel",
+    "kasuga_lib:panel/arrow_2"
+  ]
+}

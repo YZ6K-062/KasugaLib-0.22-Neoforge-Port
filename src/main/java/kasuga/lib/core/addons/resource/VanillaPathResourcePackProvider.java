@@ -1,0 +1,56 @@
+package kasuga.lib.core.addons.resource;
+
+import kasuga.lib.mixins.mixin.resources.PathPackResourceMixin;
+import net.minecraft.server.packs.PathPackResources;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
+public class VanillaPathResourcePackProvider implements ResourceProvider,HierarchicalFilesystem {
+    private final Path source;
+    private final PathPackResources pack;
+
+    public VanillaPathResourcePackProvider(Path source, PathPackResources pack) {
+        this.source = source;
+        this.pack = pack;
+    }
+
+    @Override
+    public InputStream open(String path) throws IOException {
+        Path filePath = resolve(path);
+        return Files.newInputStream(filePath);
+    }
+
+    @Override
+    public boolean exists(String path) {
+        Path filePath = resolve(path);
+        return Files.exists(filePath);
+    }
+
+    public List<String> list(String path) throws IOException {
+        try(var stream = Files.list(resolve(path))){
+            return stream.map(p -> p.getFileName().toString()).toList();
+        }
+    }
+
+    @Override
+    public boolean isRegularFile(String path) {
+        return Files.isRegularFile(resolve(path));
+    }
+
+    @Override
+    public boolean isDirectory(String path) {
+        return Files.isDirectory(resolve(path));
+    }
+
+    public Path resolve(String path){
+        if(path.startsWith("/"))
+            path = path.substring(1);
+        path = "script/" + path;
+        Path root = ((PathPackResourceMixin) pack).getRoot();
+        return root.resolve(path);
+    }
+}

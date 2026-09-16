@@ -1,0 +1,710 @@
+package kasuga.lib.registrations.common;
+
+import com.mojang.blaze3d.shaders.FogShape;
+import com.mojang.blaze3d.systems.RenderSystem;
+import org.joml.Vector3f;
+import kasuga.lib.core.annos.Inner;
+import kasuga.lib.core.annos.Mandatory;
+import kasuga.lib.core.annos.Optional;
+import kasuga.lib.registrations.Reg;
+import kasuga.lib.registrations.registry.SimpleRegistry;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.client.Camera;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.client.gui.screens.MenuScreens;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.client.gui.screens.inventory.MenuAccess;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.client.renderer.FogRenderer;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.item.*;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.level.Level;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.level.block.LiquidBlock;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.phys.HitResult;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.neoforge.client.NamedRenderTypeManager;
+import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.common.SoundAction;
+import net.neoforged.neoforge.common.SoundActions;
+
+import net.neoforged.bus.api.Event;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.fluids.FluidType;
+import net.neoforged.neoforge.fluids.BaseFlowingFluid;
+import net.neoforged.neoforge.network.IContainerFactory;
+import net.neoforged.neoforge.registries.DeferredHolder;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
+
+/**
+ * Use this registration to register fluids like water of lava.
+ * See {@link BaseFlowingFluid}, {@link net.minecraft.world.level.material.WaterFluid} and
+ * {@link net.minecraft.world.level.material.LavaFluid}
+ * @param <E> the class of your fluid.
+ */
+public class FluidReg<E extends BaseFlowingFluid> extends Reg {
+    private DeferredHolder<Fluid, E> stillObject = null;
+    private DeferredHolder<Fluid, E> flowingObject = null;
+    private final FluidType.Properties properties;
+    private BaseFlowingFluid.Properties fluidProp = null;
+    private FluidBuilder<E> stillBuilder = null, flowingBuilder = null;
+    private final ArrayList<PropertyBuilder> propertyBuilders;
+    private BucketItemReg<? extends BucketItem> itemReg = null;
+    private final ArrayList<FluidPropertyBuilder> builders;
+    private FluidBlockReg<? extends LiquidBlock> block;
+    private FluidType type = null;
+    private String stillTexturePath = null;
+    private String flowingTexturePath = null;
+    private String overlayTexturePath = null;
+    private MenuReg<?, ?> menuReg = null;
+    private int tintColor = 0xffffff;
+    boolean registerItem = false, registerBlock = false, registerMenu = false;
+    private final FluidTagReg tag;
+    private String renderType = "solid";
+    private Vector3f fogColor = null;
+
+    private Supplier<Item> bucketSupplier;
+    private String stillRegKey, flowingRegKey;
+
+    /**
+     * Create a fluid registration.
+     * @param registrationKey the registration key of your fluid.
+     */
+    public FluidReg(String registrationKey) {
+        super(registrationKey);
+        properties = FluidType.Properties.create();
+        builders = new ArrayList<>();
+        block = new FluidBlockReg<>(registrationKey);
+        propertyBuilders = new ArrayList<>();
+        tag = new FluidTagReg("forge", registrationKey, "fluids/" + registrationKey);
+        stillRegKey = registrationKey;
+        flowingRegKey = registrationKey + "_flow";
+
+        bucketSupplier = Items.BUCKET::asItem;
+    }
+
+    /**
+     * Pass your still fluid constructor here. "Still" means it is not flowing, and it's texture should be a still fluid
+     * texture. See {@link net.minecraft.world.level.material.WaterFluid.Source} or {@link BaseFlowingFluid.Source}
+     * @param builder the constructor lambda of your still fluid.
+     * @param stillTexPath the texture resource location path of the still fluid texture.
+     * @return self.
+     */
+    @Mandatory
+    public FluidReg<E> still(FluidBuilder<? extends E> builder, String stillTexPath) {
+        stillBuilder = (FluidBuilder<E>) builder;
+        this.stillTexturePath = stillTexPath;
+        return this;
+    }
+
+    @Optional
+    public FluidReg<E> still(FluidBuilder<? extends E> builder, String registerName, String stillTexPath) {
+        stillBuilder = (FluidBuilder<E>) builder;
+        this.stillTexturePath = stillTexPath;
+        this.stillRegKey = registerName;
+        return this;
+    }
+
+    /**
+     * Pass your flowing fluid constructor here. "Flowing" means it is moving, and it's texture should be a flowing fluid
+     * texture. See {@link net.minecraft.world.level.material.WaterFluid} or {@link BaseFlowingFluid}
+     * @param builder the constructor lambda of your flowing fluid.
+     * @param flowingTexPath the texture resource location path of the flowing fluid texture.
+     * @return self.
+     */
+    @Mandatory
+    public FluidReg<E> flow(FluidBuilder<? extends E> builder, String flowingTexPath) {
+        flowingBuilder = (FluidBuilder<E>) builder;
+        this.flowingTexturePath = flowingTexPath;
+        return this;
+    }
+
+    @Optional
+    public FluidReg<E> flow(FluidBuilder<? extends E> builder, String registerName, String flowingTexPath) {
+        flowingBuilder = (FluidBuilder<E>) builder;
+        this.flowingTexturePath = flowingTexPath;
+        this.flowingRegKey = registerName;
+        return this;
+    }
+
+    public FluidReg<E> decreasePreBlock(int decrease) {
+        return this.fluidProperty(prop -> prop.levelDecreasePerBlock(decrease));
+    }
+
+    public FluidReg<E> slopeFindDistance(int distance) {
+        return this.fluidProperty(prop -> prop.slopeFindDistance(distance));
+    }
+
+    public FluidReg<E> explosionResistance(float resistance) {
+        return this.fluidProperty(prop -> prop.explosionResistance(resistance));
+    }
+
+    public FluidReg<E> tickRate(int tickRate) {
+        return this.fluidProperty(prop -> prop.tickRate(tickRate));
+    }
+
+    public FluidReg<E> numericProperties(int decrease, int distance, int tickRate, float resistance) {
+        return decreasePreBlock(decrease)
+                .slopeFindDistance(distance)
+                .tickRate(tickRate)
+                .explosionResistance(resistance);
+    }
+
+    /**
+     * Your fluid must has a fluid block, pass your fluid-block's constructor lambda here.
+     * @param builder The constructor lambda of your fluid block.
+     * @return self.
+     */
+    @Mandatory
+    public FluidReg<E> blockType(FluidBlockReg.FluidBlockBuilder<? extends LiquidBlock> builder) {
+        block.blockType(builder);
+        builders.add(prop -> prop.block(block::getBlock));
+        registerBlock = true;
+        return this;
+    }
+
+    public FluidReg<E> blockType(FluidBlockReg<? extends LiquidBlock> reg) {
+        block = reg;
+        builders.add(prop -> prop.block(block::getBlock));
+        registerBlock = false;
+        return this;
+    }
+
+    /**
+     * Register your custom fluid type here.
+     * @param type your fluid type.
+     * @return self.
+     */
+    @Optional
+    public FluidReg<E> type(FluidType type) {
+        this.type = type;
+        return this;
+    }
+
+    /**
+     * Pass a bucket constructor here. Player could use this bucket to get the fluid instance.
+     * @param builder the constructor lambda.
+     * @return self.
+     */
+    @Mandatory
+    public <R extends BucketItem> FluidReg<E> bucketItem(BucketItemReg.BucketBuilder<? extends BucketItem> builder) {
+        return bucketItem(registrationKey + "_bucket", builder);
+    }
+
+    public <R extends BucketItem> FluidReg<E> bucketItem(String itemRegistrationKey,
+                                                         BucketItemReg.BucketBuilder<? extends BucketItem> builder) {
+        itemReg = new BucketItemReg<R>(itemRegistrationKey);
+        itemReg.itemType(builder);
+        itemReg.fluidType(this::stillFluid);
+        registerItem = true;
+        return this;
+    }
+
+    public FluidReg<E> bucketItem(BucketItemReg<? extends BucketItem> reg) {
+        itemReg = reg;
+        registerItem = false;
+        return this;
+    }
+
+
+    public FluidReg<E> setEmptyBucket(Supplier<Item> bucket) {
+        this.bucketSupplier = bucket;
+        return this;
+    }
+
+    /**
+     * If you bucket's model isn't lies under namespace:model/item, pass its location here.
+     * @param resourceLocation the model location.
+     * @return self.
+     */
+    @Optional
+    public FluidReg<E> bucketModel(ResourceLocation resourceLocation) {
+        if (itemReg == null) {
+            crashOnNotPresent(ItemReg.class, "itemReg", "bucketModel");
+            return this;
+        }
+        itemReg.model(resourceLocation);
+        return this;
+    }
+
+    /**
+     * Use this to customize your bucket's item property.
+     * @param identifier Bucket property customizer lambda.
+     * @return self.
+     */
+    @Optional
+    public FluidReg<E> itemProperty(ItemReg.PropertyIdentifier identifier) {
+        if (itemReg == null) {
+            crashOnNotPresent(ItemReg.class, "itemReg", "itemProperty");
+            return this;
+        }
+        itemReg.withProperty(identifier);
+        return this;
+    }
+
+    /**
+     * If you want your bucket to be custom rendered, use this.
+     * @param flag Should your bucket to be custom rendered?
+     * @return self.
+     */
+    @Optional
+    public FluidReg<E> shouldCustomRenderItem(boolean flag) {
+        if (itemReg == null) {
+            crashOnNotPresent(ItemReg.class, "itemReg", "shouldCustomRenderItem");
+            return this;
+        }
+        itemReg.shouldCustomRender(flag);
+        return this;
+    }
+
+    /**
+     * Which creative mode tab would your item contained in.
+     * @param tab the creative mode tab.
+     * @return self.
+     */
+    @Optional
+    public FluidReg<E> tab(CreativeModeTab tab) {
+        if (itemReg == null) {
+            crashOnNotPresent(ItemReg.class, "itemReg", "tab");
+            return this;
+        }
+        itemReg.tab(tab);
+        return this;
+    }
+
+    /**
+     * Which creative mode tab would your item contained in.
+     * @param reg the creative mode tab registration.
+     * @return self.
+     */
+    @Optional
+    public FluidReg<E> tab(CreativeTabReg reg) {
+        if (itemReg == null) {
+            crashOnNotPresent(ItemReg.class, "itemReg", "tab");
+            return this;
+        }
+        itemReg.tab(reg);
+        return this;
+    }
+
+    /**
+     * Your bucket's max stack size.
+     * @param size max stack size.
+     * @return self.
+     */
+    @Optional
+    public FluidReg<E> stackTo(int size) {
+        if (itemReg == null) {
+            crashOnNotPresent(ItemReg.class, "itemReg", "stackTo");
+            return this;
+        }
+        itemReg.stackTo(size);
+        return this;
+    }
+
+    /**
+     * If you want your bucket also has menus and screens, use this. For more info,
+     * see {@link BlockReg#withItemMenu(MenuReg)}
+     * @param registrationKey the registration key of your menu.
+     * @param menu Your menu's constructor lambda.
+     * @param screen Your screen's constructor lambda.
+     * @return self.
+     * @param <F> the class of your menu.
+     * @param <U> the class of your screen.
+     */
+    @Optional
+    public <F extends AbstractContainerMenu, U extends Screen & MenuAccess<F>> FluidReg<E>
+    withMenu(String registrationKey, IContainerFactory<?> menu, Supplier<MenuReg.FullScreenInvoker<F, U>> screen) {
+        menuReg = new MenuReg<F, U>(registrationKey)
+                .withMenuAndScreen((IContainerFactory<F>) menu, screen);
+        registerMenu = true;
+        return this;
+    }
+
+    /**
+     * If you want your bucket to have menus and screens, use this.
+     * @param menuReg the registration of your menu.
+     * @return self.
+     */
+    @Optional
+    public FluidReg<E> withMenu(MenuReg<?, ?> menuReg) {
+        this.menuReg = menuReg;
+        registerMenu = false;
+        return this;
+    }
+
+    /**
+     * Customize the property of your fluid block.
+     * @param identifier The property customizer of your fluid block.
+     * @return self.
+     */
+    @Optional
+    public FluidReg<E> withBlockProperty(BlockReg.PropertyIdentifier identifier) {
+        if (block == null) {
+            crashOnNotPresent(FluidBlockReg.class, "fluidBlockReg", "withBlockProperty");
+            return this;
+        }
+        block.addProperty(identifier);
+        return this;
+    }
+
+    @Optional
+    public FluidReg<E> noOcclusion() {
+        return withBlockProperty(BlockBehaviour.Properties::noOcclusion);
+    }
+
+    @Optional
+    public FluidReg<E> noCollision() {
+        return withBlockProperty(BlockBehaviour.Properties::noCollission);
+    }
+
+    @Optional
+    public FluidReg<E> noLoot() {
+        return withBlockProperty(BlockBehaviour.Properties::noLootTable);
+    }
+
+    @Optional
+    public FluidReg<E> noLootAndOcclusion() {
+        return noLoot().noOcclusion();
+    }
+
+    /**
+     * What color your fluid texture would be, 0xffffff(white) in default.
+     * @param r red.
+     * @param g green.
+     * @param b blue.
+     * @return self.
+     */
+    @Optional
+    public FluidReg<E> tintColor(int r, int g, int b) {
+        this.tintColor = r * 0xff * 0xff + g * 0xff + b;
+        return this;
+    }
+
+    /**
+     * What color your fluid texture would be, 0xffffff(white) in default.
+     * @param color color value.
+     * @return self.
+     */
+    @Optional
+    public FluidReg<E> tintColor(int color) {
+        this.tintColor = color;
+        return this;
+    }
+
+    /**
+     * If your fluid dose have an overlay, pass its resource location path here.
+     * @param path The resource location path of your fluid's overlay texture.
+     * @return self.
+     */
+    @Optional
+    public FluidReg<E> overlayTexPath(String path) {
+        this.overlayTexturePath = path;
+        return this;
+    }
+
+    /**
+     * Customize your fluid-type's property.
+     * @param builder your fluid-type's property customizer lambda.
+     * @return self.
+     */
+    @Optional
+    public FluidReg<E> typeProperty(PropertyBuilder builder) {
+        this.propertyBuilders.add(builder);
+        return this;
+    }
+
+    @Mandatory
+    public FluidReg<E> basicFluidProperties(int lightLevel, int density, int viscosity, boolean canSupportBoating) {
+        return lightLevel(lightLevel).canSupportBoating(canSupportBoating).density(density).viscosity(viscosity);
+    }
+
+    public FluidReg<E> lightLevel(int lightLevel) {
+        return this.typeProperty(prop -> prop.lightLevel(lightLevel));
+    }
+
+    public FluidReg<E> canSupportBoating(boolean flag) {
+        return this.typeProperty(prop -> prop.supportsBoating(flag));
+    }
+
+    public FluidReg<E> density(int density) {
+        return this.typeProperty(prop -> prop.density(density));
+    }
+
+    public FluidReg<E> viscosity(int viscosity) {
+        return this.typeProperty(prop -> prop.viscosity(viscosity));
+    }
+
+    @Optional
+    public FluidReg<E> bucketFillSound(SoundEvent sound) {
+        return this.typeProperty(prop -> prop.sound(SoundActions.BUCKET_FILL, sound));
+    }
+
+    @Optional
+    public FluidReg<E> bucketEmptySound(SoundEvent sound) {
+        return this.typeProperty(prop -> prop.sound(SoundActions.BUCKET_EMPTY, sound));
+    }
+
+    @Optional
+    public FluidReg<E> vaporizeSound(SoundEvent sound) {
+        return this.typeProperty(prop -> prop.sound(SoundActions.FLUID_VAPORIZE, sound));
+    }
+
+    @Optional
+    public FluidReg<E> sound(SoundAction action, SoundEvent sound) {
+        return this.typeProperty(prop -> prop.sound(action, sound));
+    }
+
+    @Optional
+    public FluidReg<E> sound(SoundEvent fillSound, SoundEvent emptySound, SoundEvent vaporizeSound) {
+        return bucketFillSound(fillSound).bucketEmptySound(emptySound).vaporizeSound(vaporizeSound);
+    }
+
+    @Optional
+    public FluidReg<E> blockSound(SoundType sound) {
+        block.withSound(sound);
+        return this;
+    }
+
+    @Optional
+    public FluidReg<E> defaultSounds() {
+        return sound(SoundEvents.BUCKET_FILL, SoundEvents.BUCKET_EMPTY, SoundEvents.FIRE_EXTINGUISH);
+    }
+
+    @Optional
+    public FluidReg<E> setRenderType(String type) {
+        this.renderType = type;
+        return this;
+    }
+
+    @Optional
+    public FluidReg<E> setTranslucentRenderType() {
+        this.renderType = "translucent";
+        return this;
+    }
+
+    @Optional
+    public FluidReg<E> fogColor(Vector3f fogColor) {
+        this.fogColor = fogColor;
+        return this;
+    }
+
+    @Optional
+    public FluidReg<E> fogColor(float r, float g, float b) {
+        this.fogColor = new Vector3f(r / 255f, g / 255f, b / 255f);
+        return this;
+    }
+
+    /**
+     * Customize your fluid's property.
+     * @param builder your fluid's property customizer lambda.
+     * @return self.
+     */
+    @Optional
+    public FluidReg<E> fluidProperty(FluidPropertyBuilder builder) {
+        builders.add(builder);
+        return this;
+    }
+
+    /**
+     * Submit your config to minecraft and forge registry.
+     * @param registry the mod SimpleRegistry.
+     * @return self.
+     */
+    @Mandatory
+    @Override
+    public FluidReg<E> submit(SimpleRegistry registry) {
+        properties.descriptionId("fluid_type." + registry.namespace + "." + registrationKey);
+        registry.cacheFluidRenderIn(this);
+        propertyBuilders.forEach(b -> b.build(properties));
+        if (flowingBuilder == null) {
+            crashOnNotPresent(BaseFlowingFluid.class, "flow", "submit");
+        }
+        if (stillBuilder == null) {
+            crashOnNotPresent(BaseFlowingFluid.class, "still", "submit");
+        }
+        block.fluid(() -> stillObject.get());
+        if (registerBlock) block.submit(registry);
+        type = type == null ? initDefaultType(registry) : type;
+        DeferredHolder<FluidType, FluidType> typeObj = registry.fluid_type().register(registrationKey, () -> type);
+        fluidProp = new BaseFlowingFluid.Properties(typeObj, () -> stillObject.get(), () -> flowingObject.get());
+        fluidProp.bucket(this::bucket);
+        for(FluidPropertyBuilder builder : builders)
+            builder.build(fluidProp);
+        if(stillBuilder != null)
+            stillObject = registry.fluid().register(stillRegKey, () -> stillBuilder.build(fluidProp));
+        if(flowingBuilder != null)
+            flowingObject = registry.fluid().register(flowingRegKey, () -> flowingBuilder.build(fluidProp));
+        if (registerItem) itemReg.submit(registry);
+        if(menuReg != null && registerMenu) {
+            if(!registry.hasMenuCache(this.toString()))
+                registry.cacheMenuIn(menuReg);
+        }
+
+        tag.submit(registry);
+        return this;
+    }
+
+    public DeferredHolder<Fluid, E> still() {
+        return stillObject;
+    }
+
+    public DeferredHolder<Fluid, E> flowing() {
+        return flowingObject;
+    }
+
+    public FluidType fluidType() {
+        return type;
+    }
+
+    public BaseFlowingFluid stillFluid() {
+        return stillObject.get();
+    }
+
+    public BaseFlowingFluid flowingFluid() {
+        return flowingObject.get();
+    }
+
+    public DeferredHolder<Item, ? extends BucketItem> itemRegistryObject() {
+        return itemReg.getRegistryObject();
+    }
+
+    public BucketItem bucket() {
+        return itemReg.getItem();
+    }
+
+    public LiquidBlock legacyBlock() {
+        return block.getBlock();
+    }
+
+    public String getRenderType() {
+        return renderType;
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    public RenderType genRenderType() {
+        return NamedRenderTypeManager.get(ResourceLocation.parse(renderType)).block();
+    }
+
+    @Override
+    public String getIdentifier() {
+        return "fluid";
+    }
+
+    @Inner
+    private FluidType initDefaultType(SimpleRegistry registry) {
+        ResourceLocation stillLoc = stillTexturePath == null ? null : ResourceLocation.fromNamespaceAndPath(registry.namespace, stillTexturePath);
+        ResourceLocation flowingLoc = flowingTexturePath == null ? null : ResourceLocation.fromNamespaceAndPath(registry.namespace, flowingTexturePath);
+        ResourceLocation overlayLoc = overlayTexturePath == null ? null : ResourceLocation.fromNamespaceAndPath(registry.namespace, overlayTexturePath);
+
+        FluidType type  = new FluidType(properties) {
+
+            @Override
+            public void initializeClient(Consumer<IClientFluidTypeExtensions> consumer) {
+                consumer.accept(
+                        new IClientFluidTypeExtensions() {
+                            @Override
+                            public int getTintColor() {
+                                return tintColor;
+                            }
+
+                            @Override
+                            public ResourceLocation getStillTexture() {
+                                if(stillLoc != null)
+                                    return stillLoc;
+                                return IClientFluidTypeExtensions.super.getStillTexture();
+                            }
+
+                            @Override
+                            public ResourceLocation getFlowingTexture() {
+                                if(flowingLoc != null)
+                                    return flowingLoc;
+                                return IClientFluidTypeExtensions.super.getFlowingTexture();
+                            }
+
+                            @Override
+                            public @Nullable ResourceLocation getOverlayTexture() {
+                                if(overlayLoc != null)
+                                    return overlayLoc;
+                                return IClientFluidTypeExtensions.super.getOverlayTexture();
+                            }
+
+                            @Override
+                            public @NotNull Vector3f modifyFogColor(Camera camera, float partialTick, ClientLevel level, int renderDistance, float darkenWorldAmount, Vector3f fluidFogColor) {
+                                return fogColor;
+                            }
+
+                            @Override
+                            public void modifyFogRender(Camera camera, FogRenderer.FogMode mode, float renderDistance, float partialTick, float nearDistance, float farDistance, FogShape shape) {
+                                RenderSystem.setShaderFogStart(1f);
+                                RenderSystem.setShaderFogEnd(6f);
+                            }
+                        }
+                );
+            }
+        };
+        return type;
+    }
+
+
+    public interface FluidBuilder<T extends Fluid> {
+        T build(BaseFlowingFluid.Properties properties);
+    }
+    public interface PropertyBuilder {
+        void build(FluidType.Properties properties);
+    }
+
+    public interface FluidPropertyBuilder {
+        void build(BaseFlowingFluid.Properties properties);
+    }
+
+    public interface BucketBuilder<T extends BucketItem> {
+        T build(Supplier<BaseFlowingFluid> fluid, Item.Properties properties);
+    }
+}

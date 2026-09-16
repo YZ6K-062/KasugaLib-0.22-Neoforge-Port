@@ -1,0 +1,14 @@
+<component name="libraryTable">
+  <library name="Gradle: org.lwjgl:lwjgl-yoga:3.3.1" type="java-imported" external-system-id="GRADLE">
+    <properties groupId="org.lwjgl" artifactId="lwjgl-yoga" version="3.3.1" baseVersion="3.3.1" />
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-yoga/3.3.1/c2a30555bdede9983f9c5f413f376ed34cfcdd98/lwjgl-yoga-3.3.1.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-yoga/3.3.1/297fe9b15aa68c221d3c86439f9d5dddfb73d245/lwjgl-yoga-3.3.1-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-yoga/3.3.1/1b87999ebf5d1178fbaf1920090fb4f72456f2ab/lwjgl-yoga-3.3.1-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

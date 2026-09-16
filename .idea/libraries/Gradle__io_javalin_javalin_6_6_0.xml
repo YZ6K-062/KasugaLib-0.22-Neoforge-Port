@@ -1,0 +1,14 @@
+<component name="libraryTable">
+  <library name="Gradle: io.javalin:javalin:6.6.0" type="java-imported" external-system-id="GRADLE">
+    <properties groupId="io.javalin" artifactId="javalin" version="6.6.0" baseVersion="6.6.0" />
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.javalin/javalin/6.6.0/87d6de26ac91fbb996504d7027251c74c824a635/javalin-6.6.0.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.javalin/javalin/6.6.0/71dd1bb6ce15a5b36a2e0374acff56bdbab5a3d2/javalin-6.6.0-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.javalin/javalin/6.6.0/fd9520505b66efe5f8045982382dfecd23e32b82/javalin-6.6.0-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

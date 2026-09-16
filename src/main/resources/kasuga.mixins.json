@@ -1,0 +1,26 @@
+{
+  "required": true,
+  "priority": 65535,
+  "package": "kasuga.lib.mixins.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "plugin": "",
+  "mixins": [
+    "MixinNbtUtils",
+    "MultiPackResourceManagerAccessor",
+    "ReloadableResourceManagerAccessor",
+    "resources.FilePackResourceMixin",
+    "resources.PathPackResourceMixin",
+    "resources.SharedZipFileAccessMixin"
+  ],
+  "client": [
+    "client.MixinBlockModel$Deserializer",
+    "client.MixinBlockModelShaper",
+    "client.MixinModelBakery",
+    "client.MixinBlockModelBinding",
+    "client.MixinBlockStateModelLoader",
+    "client.MixinTextureManager",
+    "client.MixinGameRenderer",
+    "client.MixinBlockRenderDispatcher"
+  ],
+  "minVersion": "0.8"
+}

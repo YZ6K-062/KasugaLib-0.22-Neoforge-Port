@@ -1,0 +1,14 @@
+<component name="libraryTable">
+  <library name="Gradle: com.caoccao.javet:javet-core:4.0.0" type="java-imported" external-system-id="GRADLE">
+    <properties groupId="com.caoccao.javet" artifactId="javet-core" version="4.0.0" baseVersion="4.0.0" />
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.caoccao.javet/javet-core/4.0.0/12b75359369df2a12dc068ac5cd2c53761043de9/javet-core-4.0.0.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.caoccao.javet/javet-core/4.0.0/d7ae1a238695903fd682cfcebe51e7b7bba83edc/javet-core-4.0.0-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.caoccao.javet/javet-core/4.0.0/1ea258b6c5684900590e3faafdb9858a316af269/javet-core-4.0.0-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

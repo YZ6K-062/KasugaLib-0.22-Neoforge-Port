@@ -1,0 +1,12 @@
+<component name="libraryTable">
+  <library name="Gradle: mezz.jei:jei-1.21.1-neoforge:19.21.0.247" type="java-imported" external-system-id="GRADLE">
+    <properties groupId="mezz.jei" artifactId="jei-1.21.1-neoforge" version="19.21.0.247" baseVersion="19.21.0.247" />
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/mezz.jei/jei-1.21.1-neoforge/19.21.0.247/4d9ed6b03c67148ffe7406a84deb168a632e0a60/jei-1.21.1-neoforge-19.21.0.247.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/mezz.jei/jei-1.21.1-neoforge/19.21.0.247/44dd62ca9a01d057275e1b34e489473f4613ae65/jei-1.21.1-neoforge-19.21.0.247-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>
